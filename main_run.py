@@ -10,8 +10,10 @@ from network_tro import ConTranModel
 from load_data import loadData as load_data_func
 from loss_tro import CER
 
-parser = argparse.ArgumentParser(description='seq2seq net', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('start_epoch', type=int, help='load saved weights from which epoch')
+parser = argparse.ArgumentParser(
+    description='seq2seq net', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('start_epoch', type=int,
+                    help='load saved weights from which epoch')
 args = parser.parse_args()
 
 gpu = torch.device('cuda')
@@ -28,7 +30,7 @@ LABEL_SMOOTH = True
 Bi_GRU = True
 VISUALIZE_TRAIN = True
 
-BATCH_SIZE = 8
+BATCH_SIZE = 1
 lr_dis = 1 * 1e-4
 lr_gen = 1 * 1e-4
 lr_rec = 1 * 1e-5
@@ -39,8 +41,10 @@ CurriculumModelID = args.start_epoch
 
 def all_data_loader():
     data_train, data_test = load_data_func(OOV)
-    train_loader = torch.utils.data.DataLoader(data_train, collate_fn=sort_batch, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_THREAD, pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(data_test, collate_fn=sort_batch, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_THREAD, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(
+        data_train, collate_fn=sort_batch, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_THREAD, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(
+        data_test, collate_fn=sort_batch, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_THREAD, pin_memory=True)
     return train_loader, test_loader
 
 
@@ -87,6 +91,7 @@ def sort_batch(batch):
 
     return train_domain, train_wid, train_idx, train_img, train_img_width, train_label, img_xts, label_xts, label_xts_swap
 
+
 def train(train_loader, model, dis_opt, gen_opt, rec_opt, cla_opt, epoch):
     model.train()
     loss_dis = list()
@@ -118,7 +123,8 @@ def train(train_loader, model, dis_opt, gen_opt, rec_opt, cla_opt, epoch):
 
         '''gen update'''
         gen_opt.zero_grad()
-        l_total, l_dis, l_cla, l_l1, l_rec = model(train_data_list, epoch, 'gen_update', [cer_te, cer_te2])
+        l_total, l_dis, l_cla, l_l1, l_rec = model(
+            train_data_list, epoch, 'gen_update', [cer_te, cer_te2])
         gen_opt.step()
 
         loss_dis.append(l_dis.cpu().item())
@@ -140,14 +146,16 @@ def train(train_loader, model, dis_opt, gen_opt, rec_opt, cla_opt, epoch):
     res_cer_tr = cer_tr.fin()
     res_cer_te = cer_te.fin()
     res_cer_te2 = cer_te2.fin()
-    print('epo%d <tr>-<gen>: l_dis=%.2f-%.2f, l_cla=%.2f-%.2f, l_rec=%.2f-%.2f, l1=%.2f, cer=%.2f-%.2f-%.2f, time=%.1f' % (epoch, fl_dis_tr, fl_dis, fl_cla_tr, fl_cla, fl_rec_tr, fl_rec, fl_l1, res_cer_tr, res_cer_te, res_cer_te2, time.time()-time_s))
+    print('epo%d <tr>-<gen>: l_dis=%.2f-%.2f, l_cla=%.2f-%.2f, l_rec=%.2f-%.2f, l1=%.2f, cer=%.2f-%.2f-%.2f, time=%.1f' %
+          (epoch, fl_dis_tr, fl_dis, fl_cla_tr, fl_cla, fl_rec_tr, fl_rec, fl_l1, res_cer_tr, res_cer_te, res_cer_te2, time.time()-time_s))
     return res_cer_te + res_cer_te2
+
 
 def test(test_loader, epoch, modelFile_o_model):
     if type(modelFile_o_model) == str:
         model = ConTranModel(NUM_WRITERS, show_iter_num, OOV).to(gpu)
         print('Loading ' + modelFile_o_model)
-        model.load_state_dict(torch.load(modelFile_o_model)) #load
+        model.load_state_dict(torch.load(modelFile_o_model))  # load
     else:
         model = modelFile_o_model
     model.eval()
@@ -158,7 +166,8 @@ def test(test_loader, epoch, modelFile_o_model):
     cer_te = CER()
     cer_te2 = CER()
     for test_data_list in test_loader:
-        l_dis, l_cla, l_rec = model(test_data_list, epoch, 'eval', [cer_te, cer_te2])
+        l_dis, l_cla, l_rec = model(
+            test_data_list, epoch, 'eval', [cer_te, cer_te2])
 
         loss_dis.append(l_dis.cpu().item())
         loss_cla.append(l_cla.cpu().item())
@@ -170,20 +179,23 @@ def test(test_loader, epoch, modelFile_o_model):
 
     res_cer_te = cer_te.fin()
     res_cer_te2 = cer_te2.fin()
-    print('EVAL: l_dis=%.3f, l_cla=%.3f, l_rec=%.3f, cer=%.2f-%.2f, time=%.1f' % (fl_dis, fl_cla, fl_rec, res_cer_te, res_cer_te2, time.time()-time_s))
+    print('EVAL: l_dis=%.3f, l_cla=%.3f, l_rec=%.3f, cer=%.2f-%.2f, time=%.1f' %
+          (fl_dis, fl_cla, fl_rec, res_cer_te, res_cer_te2, time.time()-time_s))
+
 
 def main(train_loader, test_loader, num_writers):
     model = ConTranModel(num_writers, show_iter_num, OOV).to(gpu)
 
     if CurriculumModelID > 0:
-        model_file = 'save_weights/contran-' + str(CurriculumModelID) +'.model'
+        model_file = 'save_weights/contran-' + \
+            str(CurriculumModelID) + '.model'
         print('Loading ' + model_file)
-        model.load_state_dict(torch.load(model_file)) #load
+        model.load_state_dict(torch.load(model_file))  # load
         #pretrain_dict = torch.load(model_file)
         #model_dict = model.state_dict()
         #pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and not k.startswith('gen.enc_text.fc')}
-        #model_dict.update(pretrain_dict)
-        #model.load_state_dict(model_dict)
+        # model_dict.update(pretrain_dict)
+        # model.load_state_dict(model_dict)
 
     dis_params = list(model.dis.parameters())
     gen_params = list(model.gen.parameters())
@@ -199,13 +211,15 @@ def main(train_loader, test_loader, num_writers):
     min_count = 0
 
     for epoch in range(CurriculumModelID, epochs):
-        cer = train(train_loader, model, dis_opt, gen_opt, rec_opt, cla_opt, epoch)
+        cer = train(train_loader, model, dis_opt,
+                    gen_opt, rec_opt, cla_opt, epoch)
 
         if epoch % MODEL_SAVE_EPOCH == 0:
             folder_weights = 'save_weights'
             if not os.path.exists(folder_weights):
                 os.makedirs(folder_weights)
-            torch.save(model.state_dict(), folder_weights+'/contran-%d.model'%epoch)
+            torch.save(model.state_dict(), folder_weights +
+                       '/contran-%d.model' % epoch)
 
         if epoch % EVAL_EPOCH == 0:
             test(test_loader, epoch, model)
@@ -219,11 +233,13 @@ def main(train_loader, test_loader, num_writers):
             else:
                 min_count += 1
             if min_count >= EARLY_STOP_EPOCH:
-                print('Early stop at %d and the best epoch is %d' % (epoch, min_idx))
+                print('Early stop at %d and the best epoch is %d' %
+                      (epoch, min_idx))
                 model_url = 'save_weights/contran-'+str(min_idx)+'.model'
                 os.system('mv '+model_url+' '+model_url+'.bak')
                 os.system('rm save_weights/contran-*.model')
                 break
+
 
 def rm_old_model(index):
     models = glob.glob('save_weights/*.model')
@@ -231,6 +247,7 @@ def rm_old_model(index):
         epoch = int(m.split('.')[0].split('-')[1])
         if epoch < index:
             os.system('rm save_weights/contran-'+str(epoch)+'.model')
+
 
 if __name__ == '__main__':
     print(time.ctime())

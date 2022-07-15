@@ -13,17 +13,20 @@ import cv2
 
 gpu = torch.device('cuda')
 
+
 def normalize(tar):
     tar = (tar - tar.min())/(tar.max()-tar.min())
     tar = tar * 255
     tar = tar.astype(np.uint8)
     return tar
 
+
 def fine(label_list):
     if type(label_list) != type([]):
         return [label_list]
     else:
         return label_list
+
 
 def write_image(xg, pred_label, gt_img, gt_label, tr_imgs, xg_swap, pred_label_swap, gt_label_swap, title, num_tr=2):
     folder = 'imgs'
@@ -36,9 +39,11 @@ def write_image(xg, pred_label, gt_img, gt_label, tr_imgs, xg_swap, pred_label_s
     gt_img = gt_img.cpu().numpy()
     gt_label = gt_label.cpu().numpy()
     gt_label_swap = gt_label_swap.cpu().numpy()
-    pred_label = torch.topk(pred_label, 1, dim=-1)[1].squeeze(-1) # b,t,83 -> b,t,1 -> b,t
+    # b,t,83 -> b,t,1 -> b,t
+    pred_label = torch.topk(pred_label, 1, dim=-1)[1].squeeze(-1)
     pred_label = pred_label.cpu().numpy()
-    pred_label_swap = torch.topk(pred_label_swap, 1, dim=-1)[1].squeeze(-1) # b,t,83 -> b,t,1 -> b,t
+    pred_label_swap = torch.topk(
+        pred_label_swap, 1, dim=-1)[1].squeeze(-1)  # b,t,83 -> b,t,1 -> b,t
     pred_label_swap = pred_label_swap.cpu().numpy()
     tr_imgs = tr_imgs[:, :num_tr, :, :]
     outs = list()
@@ -62,28 +67,35 @@ def write_image(xg, pred_label, gt_img, gt_label, tr_imgs, xg_swap, pred_label_s
         pred_text_swap = fine(pred_text_swap)
 
         for j in range(num_tokens):
-            gt_text = list(filter(lambda x: x!=j, gt_text))
-            gt_text_swap = list(filter(lambda x: x!=j, gt_text_swap))
-            pred_text = list(filter(lambda x: x!=j, pred_text))
-            pred_text_swap = list(filter(lambda x: x!=j, pred_text_swap))
-
+            gt_text = list(filter(lambda x: x != j, gt_text))
+            gt_text_swap = list(filter(lambda x: x != j, gt_text_swap))
+            pred_text = list(filter(lambda x: x != j, pred_text))
+            pred_text_swap = list(filter(lambda x: x != j, pred_text_swap))
 
         gt_text = ''.join([index2letter[c-num_tokens] for c in gt_text])
-        gt_text_swap = ''.join([index2letter[c-num_tokens] for c in gt_text_swap])
+        gt_text_swap = ''.join([index2letter[c-num_tokens]
+                               for c in gt_text_swap])
         pred_text = ''.join([index2letter[c-num_tokens] for c in pred_text])
-        pred_text_swap = ''.join([index2letter[c-num_tokens] for c in pred_text_swap])
+        pred_text_swap = ''.join([index2letter[c-num_tokens]
+                                 for c in pred_text_swap])
         gt_text_img = np.zeros_like(tar)
         gt_text_img_swap = np.zeros_like(tar)
         pred_text_img = np.zeros_like(tar)
         pred_text_img_swap = np.zeros_like(tar)
-        cv2.putText(gt_text_img, gt_text, (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-        cv2.putText(gt_text_img_swap, gt_text_swap, (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-        cv2.putText(pred_text_img, pred_text, (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-        cv2.putText(pred_text_img_swap, pred_text_swap, (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-        out = np.vstack([src, gt, gt_text_img, tar, pred_text_img, gt_text_img_swap, tar_swap, pred_text_img_swap])
+        cv2.putText(gt_text_img, gt_text, (5, 55),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(gt_text_img_swap, gt_text_swap, (5, 55),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(pred_text_img, pred_text, (5, 55),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(pred_text_img_swap, pred_text_swap, (5, 55),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        out = np.vstack([src, gt, gt_text_img, tar, pred_text_img,
+                        gt_text_img_swap, tar_swap, pred_text_img_swap])
         outs.append(out)
     final_out = np.hstack(outs)
     cv2.imwrite(folder+'/'+title+'.png', final_out)
+
 
 def assign_adain_params(adain_params, model):
     # assign the adain_params to the AdaIN layers in model
@@ -137,7 +149,8 @@ class DisModel(nn.Module):
     def forward(self, x):
         feat = self.cnn_f(x)
         out = self.cnn_c(feat)
-        return out.squeeze(-1).squeeze(-1) # b,1024   maybe b is also 1, so cannnot out.squeeze()
+        # b,1024   maybe b is also 1, so cannnot out.squeeze()
+        return out.squeeze(-1).squeeze(-1)
 
     def calc_dis_fake_loss(self, input_fake):
         label = torch.zeros(input_fake.shape[0], self.final_size).to(gpu)
@@ -156,6 +169,7 @@ class DisModel(nn.Module):
         resp_fake = self.forward(input_fake)
         fake_loss = self.bce(resp_fake, label)
         return fake_loss
+
 
 class WriterClaModel(nn.Module):
     def __init__(self, num_writers):
@@ -186,7 +200,7 @@ class WriterClaModel(nn.Module):
 
     def forward(self, x, y):
         feat = self.cnn_f(x)
-        out = self.cnn_c(feat) # b,310,1,1
+        out = self.cnn_c(feat)  # b,310,1,1
         loss = self.cross_entropy(out.squeeze(-1).squeeze(-1), y)
         return loss
 
@@ -207,10 +221,11 @@ class GenModel_FC(nn.Module):
 
     # feat_mix: b,1024,8,27
     def mix(self, feat_xs, feat_embed):
-        feat_mix = torch.cat([feat_xs, feat_embed], dim=1) # b,1024,8,27
+        feat_mix = torch.cat([feat_xs, feat_embed], dim=1)  # b,1024,8,27
         f = feat_mix.permute(0, 2, 3, 1)
-        ff = self.linear_mix(f) # b,8,27,1024->b,8,27,512
+        ff = self.linear_mix(f)  # b,8,27,1024->b,8,27,512
         return ff.permute(0, 3, 1, 2)
+
 
 class TextEncoder_FC(nn.Module):
     def __init__(self, text_max_len):
@@ -218,58 +233,65 @@ class TextEncoder_FC(nn.Module):
         embed_size = 64
         self.embed = nn.Embedding(vocab_size, embed_size)
         self.fc = nn.Sequential(
-                nn.Linear(text_max_len*embed_size, 1024),
-                nn.BatchNorm1d(1024),
-                nn.ReLU(inplace=False),
-                nn.Linear(1024, 2048),
-                nn.BatchNorm1d(2048),
-                nn.ReLU(inplace=False),
-                nn.Linear(2048, 4096)
-                )
+            nn.Linear(text_max_len*embed_size, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(inplace=False),
+            nn.Linear(1024, 2048),
+            nn.BatchNorm1d(2048),
+            nn.ReLU(inplace=False),
+            nn.Linear(2048, 4096)
+        )
         '''embed content force'''
         self.linear = nn.Linear(embed_size, 512)
 
     def forward(self, x, f_xs_shape):
-        xx = self.embed(x) # b,t,embed
-
+        xx = self.embed(x)  # b,t,embed
         batch_size = xx.shape[0]
-        xxx = xx.reshape(batch_size, -1) # b,t*embed
+        xxx = xx.reshape(batch_size, -1)  # b,t*embed
         out = self.fc(xxx)
-
         '''embed content force'''
-        xx_new = self.linear(xx) # b, text_max_len, 512
+        xx_new = self.linear(xx)  # b, text_max_len, 512
         ts = xx_new.shape[1]
         height_reps = f_xs_shape[-2]
         width_reps = f_xs_shape[-1] // ts
         tensor_list = list()
         for i in range(ts):
-            text = [xx_new[:, i:i + 1]] # b, text_max_len, 512
+            text = [xx_new[:, i:i + 1]]  # b, text_max_len, 512
             tmp = torch.cat(text * width_reps, dim=1)
             tensor_list.append(tmp)
 
         padding_reps = f_xs_shape[-1] % ts
         if padding_reps:
-            embedded_padding_char = self.embed(torch.full((1, 1), tokens['PAD_TOKEN'], dtype=torch.long).cuda())
+            embedded_padding_char = self.embed(torch.full(
+                (1, 1), tokens['PAD_TOKEN'], dtype=torch.long).cuda())
             embedded_padding_char = self.linear(embedded_padding_char)
             padding = embedded_padding_char.repeat(batch_size, padding_reps, 1)
             tensor_list.append(padding)
 
-        res = torch.cat(tensor_list, dim=1) # b, text_max_len * width_reps + padding_reps, 512
-        res = res.permute(0, 2, 1).unsqueeze(2) # b, 512, 1, text_max_len * width_reps + padding_reps
+        # b, text_max_len * width_reps + padding_reps, 512
+        res = torch.cat(tensor_list, dim=1)
+        # b, 512, 1, text_max_len * width_reps + padding_reps
+        res = res.permute(0, 2, 1).unsqueeze(2)
         final_res = torch.cat([res] * height_reps, dim=2)
 
         return out, final_res
 
 
 '''VGG19_IN tro'''
+
+
 class ImageEncoder(nn.Module):
     def __init__(self):
         super(ImageEncoder, self).__init__()
         self.model = vgg19_bn(False)
         self.output_dim = 512
+        self.fc = nn.Linear(27, self.output_dim)
 
     def forward(self, x):
-        return self.model(x)
+        output = self.model(x)
+        output = self.fc(output)
+        return output
+
 
 class Decoder(nn.Module):
     def __init__(self, ups=3, n_res=2, dim=512, out_dim=1, res_norm='adain', activ='relu', pad_type='reflect'):
@@ -300,9 +322,12 @@ class RecModel(nn.Module):
         super(RecModel, self).__init__()
         hidden_size_enc = hidden_size_dec = 512
         embed_size = 60
-        self.enc = rec_encoder(hidden_size_enc, IMG_HEIGHT, IMG_WIDTH, True, None, False).to(gpu)
-        self.dec = rec_decoder(hidden_size_dec, embed_size, vocab_size, rec_attention, None).to(gpu)
-        self.seq2seq = rec_seq2seq(self.enc, self.dec, OUTPUT_MAX_LEN, vocab_size).to(gpu)
+        self.enc = rec_encoder(hidden_size_enc, IMG_HEIGHT,
+                               IMG_WIDTH, True, None, False).to(gpu)
+        self.dec = rec_decoder(hidden_size_dec, embed_size,
+                               vocab_size, rec_attention, None).to(gpu)
+        self.seq2seq = rec_seq2seq(
+            self.enc, self.dec, OUTPUT_MAX_LEN, vocab_size).to(gpu)
         if pretrain:
             model_file = 'recognizer/save_weights/seq2seq-72.model_5.79.bak'
             print('Loading RecModel', model_file)
@@ -310,9 +335,10 @@ class RecModel(nn.Module):
 
     def forward(self, img, label, img_width):
         self.seq2seq.train()
-        img = torch.cat([img,img,img], dim=1) # b,1,64,128->b,3,64,128
-        output, attn_weights = self.seq2seq(img, label, img_width, teacher_rate=False, train=False)
-        return output.permute(1, 0, 2) # t,b,83->b,t,83
+        img = torch.cat([img, img, img], dim=1)  # b,1,64,128->b,3,64,128
+        output, attn_weights = self.seq2seq(
+            img, label, img_width, teacher_rate=False, train=False)
+        return output.permute(1, 0, 2)  # t,b,83->b,t,83
 
 
 class MLP(nn.Module):
